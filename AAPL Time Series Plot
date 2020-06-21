@@ -1,0 +1,13 @@
+install.packages(‘tseries’)
+require('tseries')
+aapl<-get.hist.quote("AAPL",quote="AdjClose",
+start=as.Date('2013-01-01'),end=as.Date('2017-01-01'))
+plot(aapl)
+ head(aapl)
+ tail(aapl)
+ ret<-diff(aapl)/lag(aapl,k=-1)*100
+ plot(ret)
+ summary(ret)
+ hist(ret)
+ aapl_2016<-window(aapl,start='2016-01-01',end='2016-12-31')
+ plot(aapl_2016)
