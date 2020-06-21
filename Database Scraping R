@@ -1,0 +1,194 @@
+
+
+getwd() #show the current working directory
+
+#change the working directory
+#setwd("")#Notebook
+setwd("")#Desktop
+
+#Alternatively, use xlsx package
+library(rJava) #required to run xlsx
+library(xlsxjars) #required to run xlsx
+library(xlsx)
+
+#Alternative ways to read xlsx: Much faster and can read a bigger file###
+#library("openxlsx")
+#returns11 <- read.xlsx("./2014SP500Constituents.xlsx", sheet = "Returns", startRow = 1, colNames = TRUE)
+
+########read the company id in the first row#########################################################
+returns <- read.xlsx("./2014SP500Constituents.xlsx", sheetName= "Returns",header= TRUE)
+
+returns[1:3] <- list(NULL) #delete the first three columns: To get list of one column returns[1] <- NULL
+
+ret0 <- returns[which(returns$Edate > 0),] #select only those without missing Edate
+#alternative: ret0 <- subset(returns,returns$Edate > 0) #select only those without missing Edate
+
+colnames(ret0)[1] <- "date" #change the name of a column
+
+ret0sort <- ret0[order(ret0$date),]
+
+ret0sort[1:5,1:5]
+
+library(reshape) # for melt to transpose the data
+returns0 <-melt(ret0sort,id=c("date")) # transpose the data
+names(returns0) <- c("date","id","ret") # variable names
+
+returns0$ret[returns0$ret ==-99] <- NA # change those returns = -99 as missing
+
+#returns0[returns0$id=="JNPR.UN.Equity",] #output all those for JNPR.UN.Equity
+
+returns0$ret <- returns0$ret/100.0
+returns0[1:5,]
+
+#########for market cap#############################################################################
+mc <- read.xlsx("./2014SP500Constituents.xlsx", sheetName= "MarketCap",header= TRUE)
+
+mc[1:5,1:5]
+mc[1] <- NULL #delete the first three columns: To get list of one column returns[1] <- NULL
+mc[1:5,1:5]
+mc[1] <- NULL #delete the first three columns: To get list of one column returns[1] <- NULL
+mc[1:5,1:5]
+mc[2] <- NULL #delete the first three columns: To get list of one column returns[1] <- NULL
+mc[1:5,1:5]
+
+###Note that here, the market cap is the one at the end of the previous month
+mc <- mc[which(mc$Bdate > 0),] #select only those without missing Edate
+#alternative: ret0 <- subset(returns,returns$Edate > 0) #select only those without missing Edate
+
+colnames(mc)[1] <- "date" #change the name of a column
+
+mcsort <- mc[order(mc$date),]
+
+library(reshape) # for melt to transpose the data
+mc0 <-melt(mcsort,id=c("date")) # transpose the data
+names(mc0) <- c("date","id","mcap") # variable names
+
+mc0$mcap[mc0$mcap == 0.00] <- NA # change those returns = -99 as missing
+
+library(dplyr)
+mc0sort <- mc0 %>% arrange(id)
+
+
+#########for m/b  ###################################################################################
+mb <- read.xlsx("./2014SP500Constituents.xlsx", sheetName= "MB",header= TRUE)
+mb[1:5,1:5]
+
+mb[1:2] <- list(NULL) #delete the first three columns: To get list of one column returns[1] <- NULL
+
+mb[1:5,1:5]
+colnames(mb)[1] <- "date" #change the name of a column
+mb[1:5,1:5]
+
+mbsort <- mb[order(mb$date),]
+
+mb0 <-melt(mbsort,id=c("date")) # transpose the data
+names(mb0) <- c("date","id","mb") # variable names
+
+mb0[1:2,]
+
+#/******now you are ready to form portfolios and calculate portfolio returns****************/
+  
+#/*for portfolio based on MB*/
+#/*find the cutoff points*/
+
+
+#/*calculate returns of the portfolio composed of all stocks in the list*/
+library(sqldf) #this packages is neded to use sql
+mb0[1:5,]
+#doBy
+library(doBy)
+sumfun <- function(x){quantile(x,c(.1, .2, .3, .4, .5, .6, .7, .8, .9),na.rm=TRUE)}
+
+
+sumfun <- function(x){quantile(x,probs=seq(0,1,0.1),na.rm=TRUE)}
+
+
+mb0$mb <- as.numeric(as.character(mb0$mb)) #convert non-numeric mb values to numeric values
+
+
+mb2 <- summaryBy(mb~date, data = mb0,FUN = sumfun)
+mb2[1:5,]
+
+names(mb2) <- c("date","mb_0","mb_10","mb_20","mb_30","mb_40","mb_50","mb_60","mb_70","mb_80","mb_90","mb_100") # variable names
+mb2[1:5,]
+
+
+#* Add 10 quantiles cutoff points and divided fimrms in to 10 groups based on mb;
+# add cutoff points
+mb3 <- sqldf("select a.*,b.*
+              from mb0 as a 
+              left join mb2 as b on a.date = b.date")
+mb3[1:5,]
+mb3[4] <- NULL #get rid of the fourth column (=date index)
+mb3[1:5,]
+#assign MB portfolio value - pmb
+mb3$pmb <- ifelse(mb3$mb <= mb3$mb_10, c(1),ifelse(mb3$mb <= mb3$mb_20, c(2),ifelse(mb3$mb <= mb3$mb_30, c(3),
+                  ifelse(mb3$mb <= mb3$mb_40, c(4),ifelse(mb3$mb <= mb3$mb_50, c(5),ifelse(mb3$mb <= mb3$mb_60, c(6),
+                  ifelse(mb3$mb <= mb3$mb_70, c(7),ifelse(mb3$mb <= mb3$mb_80, c(8),ifelse(mb3$mb <= mb3$mb_90, c(9),c(10))))))))))
+mb3[1:5,]
+
+
+
+
+mb3[4:14] <- list(NULL)
+mb3[1:5,]
+
+#/*combine the data*/
+######### add new variables #######################################################################
+#packages required for some date time functions
+library(zoo)
+library(lubridate)
+
+#The "yearmon" class is used to represent monthly data. 
+#Internally it holds the data as year plus 0 for January, 
+#1/12 for February, 2/12 for March and so on in order 
+#that its internal representation is the same as ts class
+#with frequency = 12. If x is not in this format it is rounded 
+#via floor(12*x + .0001)/12.
+
+library(plyr)
+
+returns0$ym <- as.yearmon(returns0$date)
+mc0$ym <- as.yearmon(mc0$date)
+mb3$ym <- as.yearmon(mb3$date)
+
+returns0$ym[1:20,]
+mb3[1:5,]
+mc0[1:5,]
+returns0[1:5,]
+data <- sqldf("select a.*,b.mcap,c.mb,c.pmb,b.ym as mcapym,c.ym as mbym
+              from returns0 as a
+              left join mc0 as b on round((a.ym-b.ym)*12) =1 and a.id=b.id 
+                left join mb3 as c on a.id=c.id and round((a.ym-c.ym)*12) between 1 and 12
+              order by a.id,a.date")
+
+data[which(data$id=="EIX.UN.Equity" & data$ym < 2009),]
+##need to use the lagged market cap but ....
+data$lmcap <- data$mcap
+##do not need the following since mcap is the value at the end of previous month
+
+#library(Hmisc) #this is for Lag, that shift back and forth (Lag(x,shift=1))
+#data$lmcap=Lag(data$mcap)
+#data$ldate=Lag(data$date)
+#data$lid=Lag(data$id)
+data$yyyymm=as.numeric(format(data$date,"%Y"))*100 +as.numeric(format(data$date,"%m"))
+#data$diffm=round((as.yearmon(data$date)-as.yearmon(data$ldate))*12)
+#data$lmcap[data$diffm !=1 | data$id != data$lid] <- NA
+##################################################################################
+
+data[which(data$id == "A.UN.Equity"),]
+
+
+#/*calculate returns of the portfolio*/
+ret <- sqldf("select a.yyyymm, a.pmb, sum(a.ret)/count(a.ret) as ewret,
+                    sum(a.ret*a.lmcap)/sum(a.lmcap) as vwret,count(a.ret) as numstock
+             from data as a
+             group by a.yyyymm, pmb
+             order by a.yyyymm, pmb")
+
+ret[1:5,]
+
+avg <- sqldf("select a.pmb, avg(ewret),avg(vwret)
+             from ret as a
+             group by pmb")
+avg[,]
