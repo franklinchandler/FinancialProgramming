@@ -1,0 +1,25 @@
+
+ stock <- read.csv("tesla.csv")
+ t <- 48
+ r <- matrix(rep(0,48*2),48,2)
+ r[1,] <- 0
+for(i in 2:N) {
+     for(j in 1:2) {
+         r[i,j] <- (stock[i,j+1] - stock[i-1,j+1]) / stock[i-1,j+1]
+     }
+ }
+ plot(r)
+ x<-r[,1]
+ y<-r[,2]
+ m<-lm(y~x)
+ m
+ plot(r)
+ abline(m)
+ 
+
+Call:
+lm(formula = y ~ x)
+
+Coefficients:
+(Intercept)            x  
+    0.01458      0.28412
