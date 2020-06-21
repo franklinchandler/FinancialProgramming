@@ -1,0 +1,41 @@
+initial<-100000
+rate<-0.02   #deposit rate
+mu<-0.05
+sigma<-0.2
+N<-11
+M<-1000
+dt<-1  #year:1, day: 1/N (N:250)
+R<-0
+S<-matrix(rep(NA,N*M),N,M)
+S[1,]<- 100000 #initial investment 100,000 
+C_fail <- 0
+
+for(j in 1:M) {
+  prop<-0.4    #initial portfolio rate
+  
+  for(i in 2:N) {
+
+    Sij <- S[i-1,j] * prop    #stock invest amount
+    Dij <- S[i-1,j] - Sij     #deposit invest amount
+    
+  # R <- 1+mu*dt+sigma*sqrt(dt)*rnorm(1)   #stock return rate
+  # Return <- Sij+mu*Sij*dt+sigma*Sij*sqrt(dt)*rnorm(1)   
+    R = exp((mu - 0.5 * sigma ^ 2)*dt + sigma*sqrt(dt)*rnorm(1))
+    S1 <- Sij * R + Dij * (1 + rate)       #return result
+    S[i,j] <- S1
+
+    if(i < N) {      
+      if(R-1 > 0) {
+        prop <- 0.6
+      } else {
+        prop <- 0.2
+      }
+    }
+  }
+  if(S[N,j] < 100000) {
+    C_fail = C_fail + 1  
+  } 
+}
+
+NegativeWealth <- C_fail / M
+NegativeWealth
