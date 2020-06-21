@@ -1,0 +1,24 @@
+Function PositiveWealth(initial, rate, mu, vol, prop, prop1, prop2, draw, N, M)
+    ReDim W(1 To N + 1) As Double
+    W(1) = initial
+    success = 0
+    For j = 1 To M
+        For i = 1 To N
+            If i = 1 Then prop = prop
+            S = prop * W(i)
+            D = W(i) - S
+            e = Application.NormSInv(Rnd())
+            R = (S + mu * S + vol * S * e) / S
+            W1 = S * R + D * (1 + rate)
+            W2 = W1 - draw
+            W(i + 1) = W1
+            If R > 1 Then
+                prop = prop1
+            Else
+                prop = prop2
+            End If
+        Next
+        If W(N + 1) < 100000 Then success = success + 1
+    Next
+    PositiveWealth = success / M
+End Function
